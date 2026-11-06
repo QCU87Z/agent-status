@@ -77,3 +77,5 @@ npm install
 npm test && npm run typecheck
 npm run release      # builds release/agent-status-<version>.tar.gz and its .sha256
 ```
+
+To publish a release, bump `version` in `package.json`, commit, then push a matching tag (`git tag -a v0.2.0 -m v0.2.0 && git push origin main v0.2.0`). The Release workflow tests, builds and attaches the tarball and checksum. It fails if the tag and `package.json` disagree.
