@@ -9,15 +9,33 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 22 is the oldest Node the release supports; 26 is the current LTS.
+        node: [22, 26]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          # No dependency cache in a release workflow, so a poisoned cache can't reach a published build.
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+
   release:
+    needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
-          cache: npm
+          node-version: 26
+          package-manager-cache: false
 
       - name: Check the tag matches package.json
         run: |
@@ -28,9 +46,17 @@ jobs:
           fi
 
       - run: npm ci
-      - run: npm test
-      - run: npm run typecheck
       - run: npm run release
+
+      - name: Smoke-test the built server
+        run: |
+          name="agent-status-${GITHUB_REF_NAME#v}"
+          mkdir smoke && tar -xzf "release/$name.tar.gz" -C smoke
+          PORT=7799 DATA_DIR="$RUNNER_TEMP/as" "smoke/$name/start.sh" &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://127.0.0.1:7799/ && break; sleep 0.5; done
+          curl -sf -o /dev/null http://127.0.0.1:7799/
+          curl -sf -X POST -H 'content-type: application/json' -d '{"agent":"opencode","sessionId":"ci","event":"idle"}' http://127.0.0.1:7799/events
+          curl -sf http://127.0.0.1:7799/api/sessions | grep -q '"sessionId":"ci"'
 
       - name: Publish the release
         env:

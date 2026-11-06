@@ -1,6 +1,6 @@
 {
   "name": "agent-status",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "One local page showing every Claude Code and OpenCode session and whether it needs you",
   "type": "module",
